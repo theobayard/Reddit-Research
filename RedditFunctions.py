@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdate
 import seaborn as sb
 
+# Creating csv
+import csv
+
 #Getting JSON from webpage
 #!/usr/bin/env python
 try:
@@ -361,3 +364,27 @@ def total_comments(subreddit = None, author = None, after = None, before = None)
         total += b['doc_count']
     
     return total
+
+def save_all_comment_ids(subreddit,before=None,after=None):
+    """
+    Save a csv of all comment ids at comment_ids/[subreddit].csv
+
+    Input:
+        subreddit: string
+        before: int, epoch value
+        after: int, epoch value
+
+    Output:
+        none
+    """
+
+    csvFileLocation = "comment_ids/" + subreddit + ".csv"
+
+    with open(csvFileLocation, mode = 'w') as csvFile:
+
+        idWriter = csv.writer(csvFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+
+    #TODO: Finish this function
+
+
