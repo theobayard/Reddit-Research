@@ -1,13 +1,18 @@
-#accessing databse
+# Accessing databse
 import sqlite3
+
+# Working with data
+import pandas as pd
 
 # plotting
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdate
 import seaborn as sb
 
-# Creating csv
-import csv
+# Dealing with Files
+import os
+import glob
+import shutil
 
 #Getting JSON from webpage
 #!/usr/bin/env python
@@ -22,7 +27,7 @@ import json
 
 
 
-#Thank you Martin Thoma from stack overflow for this function
+# Thank you Martin Thoma from stack overflow for this function
 def get_jsonparsed_data(url):
     """
     Receive the content of ``url``, parse it as JSON and return the object.
@@ -365,26 +370,97 @@ def total_comments(subreddit = None, author = None, after = None, before = None)
     
     return total
 
-def save_all_comment_ids(subreddit,before=None,after=None):
+def clean_csv(csvPath,after,before,minTextLength,maxTextLength):
     """
-    Save a csv of all comment ids at comment_ids/[subreddit].csv
+    This command will create a new csv file with only
+    comments between the after and before times who's body character
+    length is between minTextLength and maxTextLength. 
+    
+    The file is saved in the current directory
 
     Input:
-        subreddit: string
-        before: int, epoch value
-        after: int, epoch value
-
+        csvPath: String
+        after: int (epoch value)
+        before: int (epoch value)
+        minTextLength: int
+        maxTextLength: int 
+    
     Output:
-        none
+        None
     """
 
-    csvFileLocation = "comment_ids/" + subreddit + ".csv"
+    comments = pd.read_csv(csvPath,low_memory=False)
+    
+    # minTextLength <= comment-length <= maxTextLength AND after < time-created < before
+    filterExpressions = (comments.body.str.len()>=minTextLength, comments.body.str.len()<=maxTextLength, comments.created_utc > after, comments.created_utc < before)
+    print(filterExpressions)
 
-    with open(csvFileLocation, mode = 'w') as csvFile:
+    comments = comments[all(filterExpressions)]
 
-        idWriter = csv.writer(csvFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    comments.to_csv( "cleaned_csv.csv", index=False, encoding='utf-8-sig')
 
+def csv_to_db(fileLocation, newFileName, tableName):
+    """
+    Converts a csv file to a db file
 
-    #TODO: Finish this function
+    Input:
+        fileLocation: String of file path
+        newFileName: String of db file name
 
+    Output:
+        None
+    """
 
+    db = sqlite3.connect(newFileName)
+
+    csv = pd.read_csv(fileLocation)
+
+    csv.to_sql(tableName,db)
+
+    db.close()
+
+def combine_csv_to_db(folderLocation, newFileName, tableName, maxNum=20):
+    """
+    Converts a multiple csv files to one db file
+
+    Input:
+        folderLocation: String of folder path
+            - Folder must contain only csv files
+        newFileName: String of db file name
+        tableName: name of db table to add to
+        maxNum: The maximum number of files to combine before stopping
+
+    Output:
+        None
+    """
+    originalDirectory = os.getcwd()
+    processedFolder = "Finished"
+
+    # Grab files names
+    os.chdir(folderLocation)
+    all_filenames = [i for i in glob.glob('[!{}]*'.format(processedFolder))]
+
+    # Make sure there is a folder for processed files
+    try:
+        # Create target Directory
+        os.mkdir(processedFolder)
+        print("Directory " , processedFolder ,  " Created ") 
+    except FileExistsError:
+        print("Directory " , processedFolder ,  " already exists")
+
+    db = sqlite3.connect(newFileName)
+
+    # Add all the files to the db
+    for fileName in all_filenames:
+        csv = pd.read_csv(fileName, low_memory=False)
+        csv.to_sql(tableName,db, if_exists="append")
+        print(fileName, " added to database")
+        shutil.move(fileName, processedFolder)
+        
+        # Check for maxNum
+        if (maxNum < 1):
+            break
+
+    # Clean up
+    db.close()
+    os.chdir(originalDirectory)
