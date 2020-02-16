@@ -4,10 +4,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdate
 
 # A list of dictionaries defining the times and subreddits to analyze.
-
 candidates = [
     {'subreddit': 'The_Donald', 'after': 1434412800, 'before': 1478563200},
-    {'subreddit': 'SandersForPresident', 'after':1432598400 , 'before': 1469491200 },
+    {'subreddit': 'SandersForPresident', 'after':1432598400 , 'before': 1469491200 }, # 1455590801
     {'subreddit': 'hillaryclinton', 'after':1428796800 , 'before': 1478563200 },
     #{'subreddit': 'TedCruzForPresident', 'after':1427068800	 , 'before': 1462233600},
     #{'subreddit': 'TedCruz', 'after':1427068800, 'before': 1462233600},
@@ -15,7 +14,39 @@ candidates = [
     #{'subreddit': 'Marco_Rubio', 'after': 1428883200, 'before': 1458000000},
     {'subreddit': 'jillstein', 'after': 1434931200, 'before': 1478563200},
     {'subreddit': 'GaryJohnson', 'after': 1452038400, 'before': 1478563200}
-    ]
+]
+
+# Databases of relivant subreddits
+databases = [
+    ('The_Donald', '/Users/theobayarddevolo/AnacondaProjects/Reddit-Research/Data/The_Donald/The_Donald.db'),
+    ('SandersForPresident', '/Users/theobayarddevolo/AnacondaProjects/Reddit-Research/Data/SandersForPresident/SandersForPresidentScoreOver1.db'),
+    ('hillaryclinton', '/Users/theobayarddevolo/AnacondaProjects/Reddit-Research/Data/hillaryclinton/hillaryclinton.db')
+]
+
+# SQL selection criteria for "rich" comments
+"""
+    determines whether a given comment is "rich"
+    as in does it contain useful data that is representative
+    of the community?
+
+    A rich comment has these qualities:
+        - Between 50 and 750 characters
+        - Does not start with a > as this indicates text being quoted
+        - Has a score of at least 2
+
+    These indicators were taken from the article 'Using Platform Signals for 
+    Distinguishing Discourses: The Case of Men’s Rights and Men’s Liberation 
+    on Reddit' by Jack LaViolette and Bernie Hogan as well as 'Cats and Captions vs. 
+    Creators and the Clock: Comparing Multimodal Content to Context in Predicting 
+    Relative Popularity' by Jack Hessel et al. 
+"""
+sqlRichComments = "length(body) > 50 AND length(body) < 750 AND substr(body,1,1) != \">\" AND score > 1"
+
+# Finalize the paramaters for the SQL Quarries
+# Add time contraints
+maxAfter = max([i['after'] for i in candidates])
+minBefore = min([i['before'] for i in candidates])
+sqlParams = "created_utc > " + str(maxAfter) + " AND created_utc < " + str(minBefore) + " AND " + sqlRichComments
 
 def total_candidate_comments():
     '''
@@ -104,3 +135,16 @@ def plot_candidate_comments_over_time():
     plt.legend(subreddits,loc='upper left')
 
     plt.show()
+
+
+def prep_2016PresElection_pairing_db(dbName, totalComments):
+    """
+    A short little wrapper to prep my pairing db
+    """
+    rf.prep_pairing_db(databases,totalComments,dbName,sqlParams)
+
+def pair_2016PresElection(preppedDbLocation):
+    """
+    A short little wrapper to pair my prepped db
+    """
+    rf.pair_prepped_comment_db(preppedDbLocation,databases,sqlParams)
